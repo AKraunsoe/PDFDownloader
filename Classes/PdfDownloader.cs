@@ -6,29 +6,18 @@ class PdfDownloader
     private static readonly HttpClient httpClient = new HttpClient();
 
     public async Task<DownloadResult> DownloadRowAsync(
-        Dictionary<string, object?> pdfObject,
+        ExcelRow row,
         string pdfDirectoryPath,
         int rowNumber)
     {
-        object? idValue = pdfObject.TryGetValue("id", out object? idObject) ? idObject : null;
-        object? urlValue = pdfObject.TryGetValue("url", out object? urlObject) ? urlObject : null;
-        object? originalAltUrlValue = pdfObject.TryGetValue("alt url", out object? altUrlObject) ? altUrlObject : null;
-        string? primaryUrl = pdfObject.TryGetValue("url", out object? primaryUrlValue)
-            ? primaryUrlValue?.ToString()
-            : null;
-        string? altUrl = pdfObject.TryGetValue("alt url", out object? altUrlValue)
-            ? altUrlValue?.ToString()
-            : null;
-        string? id = pdfObject.TryGetValue("id", out object? idVal)
-            ? idVal?.ToString()
-            : null;
+
         string? primaryError = null;
         string? altError = null;
 
         foreach ((string sourceName, string? downloadUrl) in new[]
         {
-            ("url", primaryUrl),
-            ("alt url", altUrl)
+            ("url", row.url),
+            ("alt url", row.altUrl)
         })
         {
             if (string.IsNullOrWhiteSpace(downloadUrl))
@@ -70,18 +59,18 @@ class PdfDownloader
                 string fileName = Path.GetFileName(uri.LocalPath);
                 if (string.IsNullOrWhiteSpace(fileName))
                 {
-                    fileName = $"document_{id}.pdf";
+                    fileName = $"document_{row.id}.pdf";
                 }
                 else if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                 {
-                    return new DownloadResult(idValue, urlValue, originalAltUrlValue, false, "", "File found is not a pdf file it is a "+fileName.Substring(fileName.LastIndexOf('.'), fileName.Length));
+                    return new DownloadResult(row.id, row.url, row.altUrl, false, "", "File found is not a pdf file it is a "+fileName.Substring(fileName.LastIndexOf('.'), fileName.Length));
                 }
 
-                string destinationPath = Path.Combine(pdfDirectoryPath, $"{id}_{fileName}");
+                string destinationPath = Path.Combine(pdfDirectoryPath, $"{row.id}_{fileName}");
                 await File.WriteAllBytesAsync(destinationPath, fileContents);
                 string savedFileName = Path.GetFileName(destinationPath);
                 Console.WriteLine($"Successfully downloaded row {rowNumber} using {sourceName}: {destinationPath}");
-                return new DownloadResult(idValue, urlValue, originalAltUrlValue, true, savedFileName, null);
+                return new DownloadResult(row.id, row.url, row.altUrl, true, savedFileName, null);
             }
             catch (Exception e)
             {
@@ -100,7 +89,7 @@ class PdfDownloader
 
         string error = $"Primary URL error: {primaryError} Alternate URL error: {altError}";
         Console.WriteLine($"Could not download row {rowNumber}. {error}");
-        return new DownloadResult(idValue, urlValue, originalAltUrlValue, false, null, error);
+        return new DownloadResult(row.id, row.url, row.altUrl, false, null, error);
     }
 
     private static bool HasPdfSignature(byte[] fileContents)

@@ -23,7 +23,7 @@ try
         System.IO.Directory.CreateDirectory(PdfDirectoryPath);
         System.IO.Directory.CreateDirectory(ExcelResultDirectoryPath);
         Console.WriteLine(FilePath);
-        List<Dictionary<string, object?>> NewExcelFileObject = fr.ExcelReader(FilePath);
+        List<ExcelRow> NewExcelFileObject = fr.ExcelReader(FilePath);
         PdfDownloader pdfDownloader = new PdfDownloader();
         List<DownloadResult> downloadResults = new();
         for (int i = 0; i < 10 && i < NewExcelFileObject.Count; i++)
@@ -32,14 +32,7 @@ try
         }
         OutputFileWriter outputFileWriter = new OutputFileWriter();
         outputFileWriter.Write(ExcelResultDirectoryPath, downloadResults);
-        /*
-        foreach (Dictionary<string, object?> dict in NewExcelFileObject)
-        {
-            foreach (KeyValuePair<string, object?> KeyValue in dict)
-            {
-                Console.WriteLine(KeyValue);
-            }   
-        } */
+
     }
 
 }

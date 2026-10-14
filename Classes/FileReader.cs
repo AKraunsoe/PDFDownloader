@@ -1,15 +1,13 @@
-
 using System.Runtime.CompilerServices;
 using ExcelDataReader;
 using System.Text;
 
-
 class FileReader()
 {
-    public List<Dictionary<string, object?>> ExcelReader (String filePath)
+    public List<ExcelRow> ExcelReader (String filePath)
     {
-        
-        List<Dictionary<string, object?>> rows = new List<Dictionary<string, object?>>();
+
+        List<ExcelRow> rows = new List<ExcelRow>();
         using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
             {
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -20,34 +18,58 @@ class FileReader()
                 using (var reader = ExcelReaderFactory.CreateReader(stream))
                 {
                     do
+                {
+
+                    Dictionary<string, int> headers = new Dictionary<string, int>(
+                        StringComparer.OrdinalIgnoreCase);
+
+                    Dictionary<string, string> columnMap = new Dictionary<string, string>
                     {
-                        string[] headers = new string[reader.FieldCount];
+                        ["id"] = nameof(ExcelRow.id),
+                        ["url"] = nameof(ExcelRow.url),
+                        ["alt url"] = nameof(ExcelRow.altUrl),
+                        ["Success"] = nameof(ExcelRow.Success),
+                        ["Filename"] = nameof(ExcelRow.Filename),
+                        ["Error"] = nameof(ExcelRow.Error)
+                    };
+
+                        if(reader.Read()){
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                headers[reader.GetValue(i)?.ToString()?.Trim() ?? ""] = i;
+                            }
+                        }
 
                         while (reader.Read())
                         {
-                            if(headers[headers.Count()-1] == null){
-                                for (int i = 0; i < headers.Length; i++)
-                                {
-                                    headers[i] = reader.GetValue(i)?.ToString() ?? $"Column{i + 1}";
-                                }
-                                continue;
-                            }
+                            var properties = typeof(ExcelRow).GetProperties()
+                                .ToDictionary(p => p.Name);
+                            ExcelRow row = new ExcelRow();
 
-                            Dictionary<string, object?> row = new Dictionary<string, object?>();
-
-                            for (int i = 0; i < headers.Length; i++)
+                            foreach (var (header, propertyName) in columnMap)
                             {
-                                if(i == 0 && reader.GetValue(i) == null)
-                                {
-                                    return rows;
-                                }
-                                row[headers[i]] = reader.GetValue(i);
+                                if (!headers.TryGetValue(header, out int columnIndex))
+                                    continue;
+
+                                var value = reader.GetValue(columnIndex);
+
+                                if (value == null || value == DBNull.Value)
+                                    continue;
+
+                                var property = properties[propertyName];
+
+                                var targetType =
+                                    Nullable.GetUnderlyingType(property.PropertyType)
+                                    ?? property.PropertyType;
+
+                                property.SetValue(
+                                    row,
+                                    Convert.ChangeType(value, targetType));
                             }
 
                             rows.Add(row);
                         }
                     } while (reader.NextResult());
-
                 }
             }
         return rows;
