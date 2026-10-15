@@ -42,6 +42,12 @@ class FileReader()
 
                         while (reader.Read())
                         {
+                            if(reader.GetValue(0) == null && 
+                                reader.GetValue(1) == null &&
+                                reader.GetValue(2) == null)
+                            {
+                                break;
+                            }
                             var properties = typeof(ExcelRow).GetProperties()
                                 .ToDictionary(p => p.Name);
                             ExcelRow row = new ExcelRow();
@@ -96,5 +102,37 @@ class FileReader()
             return FoundFile;
         }
         return "";
+    }
+
+     public List<ExcelRow> ReturnUpdatedList(List<ExcelRow> NewList, List<ExcelRow> OldList)
+    {
+        List<ExcelRow> result = new();
+
+        for (int i = 0; i < OldList.Count; i++)
+        {
+            ExcelRow newRow = i < NewList.Count ? NewList[i] : new ExcelRow();
+            ExcelRow oldRow = OldList[i];
+            if(newRow.id != null){
+                if(newRow.id == oldRow.id && newRow.url == oldRow.url && newRow.altUrl == oldRow.altUrl){
+                    result.Add(oldRow);
+                } 
+                else{
+                    result.Add(newRow);
+                }
+            }
+            else{
+                result.Add(oldRow);
+            }
+        }
+
+        if(NewList.Count > OldList.Count)
+        {
+            for (int i = OldList.Count; i < NewList.Count; i++)
+            {
+                result.Add(NewList[i]);
+            }
+        }
+
+        return result;
     }
 }
