@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using DocumentFormat.OpenXml.Office2010.ExcelAc;
+using System.Collections.Concurrent;
 
 class PdfDownloader
 {
@@ -12,25 +13,38 @@ class PdfDownloader
     private static readonly HttpClient httpClient = new HttpClient(handler);
 
     public readonly List<DownloadResult> downloadResults = new();
+    private readonly ConcurrentDictionary<string, byte> retriedUrls =
+    new(StringComparer.OrdinalIgnoreCase);
+    private int totalCount = 0;
+    private int processedCount = 0;
+    private int downloadedCount = 0;
+    private ProgressBar progressBar = new ProgressBar();
+    private readonly object progressUpdateLock = new();
+    private readonly SemaphoreSlim downloadLimit = new(40);
 
+    public PdfDownloader()
+    {
+        //httpClient.DefaultRequestHeaders.Accept.Clear();
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0");
+        httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml,application/pdf;q=0.9,*/*;q=0.8");
+        httpClient.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
+        httpClient.Timeout = TimeSpan.FromMinutes(2);
+    }
+    
     public async Task FillDownLoadResults(List<ExcelRow> NewExcelFileObject, string PdfDirectoryPath)
     {
         downloadResults.Clear();
+        retriedUrls.Clear();
         var debug = Debugger.IsAttached;
 
-        int totalCount = NewExcelFileObject.Count(row => row.Success != true);
+        totalCount = NewExcelFileObject.Count(row => row.Success != true);
         int loopCount = NewExcelFileObject.Count();
-        int processedCount = 0;
-        int downloadedCount = 0;
 
         if (debug)
         {
             loopCount = 10;
             totalCount = 10 - NewExcelFileObject.Count(row => row.Success);
         }
-        
-        //int totalCount = NewExcelFileObject.Count(row => row.Success != true);
-        using var progressBar = new ProgressBar();
 
         if (totalCount == 0)
         {
@@ -41,112 +55,199 @@ class PdfDownloader
         progressBar.Update(0, 0, totalCount);
         progressBar.StartTimer();
 
+        List<Task<DownloadResult>> downloadTasks = new List<Task<DownloadResult>>(loopCount);
+
         for (int i = 0; i < loopCount; i++)
         {
             ExcelRow row = NewExcelFileObject[i];
             if (row.Success == true)
             {
-                downloadResults.Add(new DownloadResult(row.id, row.url, row.altUrl, row.Success, row.Filename, row.Error));
+                downloadTasks.Add(Task.FromResult(new DownloadResult(row.id, row.url, row.altUrl, row.Success, row.Filename, row.Error)));
                 continue;
             }
 
-            DownloadResult result = await DownloadRowAsync(row, PdfDirectoryPath, i + 1);
-            downloadResults.Add(result);
-            processedCount++;
-
-            if (result.Success)
-            {
-                downloadedCount++;
-            }
-
-            progressBar.Update(processedCount, downloadedCount, totalCount);
+            downloadTasks.Add(DownloadRowAsync(row, PdfDirectoryPath));
+            
         }
+        DownloadResult[] results = await Task.WhenAll(downloadTasks);
+        downloadResults.AddRange(results);
     }
 
     private async Task<DownloadResult> DownloadRowAsync(
         ExcelRow row,
-        string pdfDirectoryPath,
-        int rowNumber)
+        string pdfDirectoryPath)
     {
 
-        string? primaryError = null;
-        string? altError = null;
+        await downloadLimit.WaitAsync();
 
-        foreach ((string sourceName, string? downloadUrl) in new[]
+        try
         {
-            ("url", row.url),
-            ("alt url", row.altUrl)
-        })
-        {   
-            if (string.IsNullOrWhiteSpace(downloadUrl)){
-                if (sourceName == "url")
-                {
-                    primaryError = "The URL value is missing.";
-                }
-                else
-                {
-                    altError = "The alternate URL value is missing.";
-                }
-                continue;
-            }
+            string? primaryError = null;
+            string? altError = null;
 
-            try
+            foreach ((string sourceName, string? downloadUrl) in new[]
             {
-                if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out Uri? uri)
-                    || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)){
-                    throw new InvalidOperationException("The value is not a valid HTTP or HTTPS URL.");
-                }
-
-                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0");
-                httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                httpClient.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
-                httpClient.DefaultRequestHeaders.AcceptEncoding.ParseAdd("gzip, deflate, br");
-
-                using HttpResponseMessage response = await httpClient.GetAsync(uri);
-                response.EnsureSuccessStatusCode();
-
-                byte[] fileContents = await response.Content.ReadAsByteArrayAsync();
-                if (!HasPdfSignature(fileContents)){
-                    string? detectedFormat = response.Content.Headers.ContentType?.MediaType;
-                    if (string.IsNullOrWhiteSpace(detectedFormat)
-                        || detectedFormat.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase)){
-                        string extension = Path.GetExtension(uri.LocalPath);
-                        detectedFormat = string.IsNullOrWhiteSpace(extension) ? "unknown format" : $"{extension} file";
+                ("url", row.url),
+                ("alt url", row.altUrl)
+            })
+            {   
+                if (string.IsNullOrWhiteSpace(downloadUrl)){
+                    if (sourceName == "url")
+                    {
+                        primaryError = "The URL value is missing.";
                     }
-                    throw new InvalidDataException($"Downloaded file is not a PDF. Detected format: {detectedFormat}.");
+                    else
+                    {
+                        altError = "The alternate URL value is missing.";
+                    }
+                    continue;
                 }
 
-                string fileName = Path.GetFileName(uri.LocalPath);
-                if (string.IsNullOrWhiteSpace(fileName)){
-                    fileName = $"document_{row.id}.pdf";
-                }else if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)){
-                    fileName = Path.ChangeExtension(fileName, ".pdf");
-                }
+                try
+                {
+                    if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out Uri? uri)
+                        || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)){
+                        throw new InvalidOperationException("The value is not a valid HTTP or HTTPS URL.");
+                    }
 
-                string destinationPath = Path.Combine(pdfDirectoryPath, $"{row.id}_{fileName}");
-                await File.WriteAllBytesAsync(destinationPath, fileContents);
-                string savedFileName = Path.GetFileName(destinationPath);
-                //Console.WriteLine($"Successfully downloaded row {rowNumber} using {sourceName}: {destinationPath}");
-                return new DownloadResult(row.id, row.url, row.altUrl, true, savedFileName, null);
+                    using HttpResponseMessage response = await GetResponseWithRetryAsync(uri);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        string responseBody = await response.Content.ReadAsStringAsync();
+                        int errorCode = (int)response.StatusCode;
+
+                        if(errorCode == 403)
+                        {
+                            throw new HttpRequestException(
+                            $"HTTP {errorCode} ({response.StatusCode}) for {uri}. This error can be a program only error, or it might be a legit forbidden error, please try to download this manually ");
+                        }
+
+                        throw new HttpRequestException(
+                            $"HTTP {errorCode} ({response.StatusCode}) for {uri}. ");
+                    }
+
+                    byte[] fileContents = await response.Content.ReadAsByteArrayAsync();
+                    if (!HasPdfSignature(fileContents)){
+                        string? detectedFormat = response.Content.Headers.ContentType?.MediaType;
+                        if (string.IsNullOrWhiteSpace(detectedFormat)
+                            || detectedFormat.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase)){
+                            string extension = Path.GetExtension(uri.LocalPath);
+                            detectedFormat = string.IsNullOrWhiteSpace(extension) ? "unknown format" : $"{extension} file";
+                        }
+                        throw new InvalidDataException($"Downloaded file is not a PDF. Detected format: {detectedFormat}.");
+                    }
+
+                    string fileName = Path.GetFileName(uri.LocalPath);
+                    if (string.IsNullOrWhiteSpace(fileName)){
+                        fileName = $"document_{row.id}.pdf";
+                    }else if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)){
+                        fileName = Path.ChangeExtension(fileName, ".pdf");
+                    }
+
+                    string destinationPath = Path.Combine(pdfDirectoryPath, $"{row.id}_{fileName}");
+                    await File.WriteAllBytesAsync(destinationPath, fileContents);
+                    string savedFileName = Path.GetFileName(destinationPath);
+                    updateProgressBar(true);
+                    return new DownloadResult(row.id, row.url, row.altUrl, true, savedFileName, null);
+                    
+                }
+                catch (Exception e)
+                {
+                    if (sourceName == "url"){
+                        primaryError = e.Message;
+                    }
+                    else{
+                        altError = e.Message;
+                    }
+                }
             }
-            catch (Exception e)
-            {
-                if (sourceName == "url"){
-                    primaryError = e.Message;
-                }
-                else{
-                    altError = e.Message;
-                }
 
-                //Console.WriteLine($"Download using {sourceName} failed for row {rowNumber}: {e.Message}");
-            }
+            string error = $"Primary URL error: {primaryError} Alternate URL error: {altError}";
+            updateProgressBar(false);
+            return new DownloadResult(row.id, row.url, row.altUrl, false, null, error);
+        }
+        finally
+        {
+            downloadLimit.Release();
+        }
+    
+    }
+
+    private void updateProgressBar(bool success)
+    {
+        if (success)
+        {
+            Interlocked.Increment(ref downloadedCount);
         }
 
+        Interlocked.Increment(ref processedCount);
 
-        string error = $"Primary URL error: {primaryError} Alternate URL error: {altError}";
-        //Console.WriteLine($"Could not download row {rowNumber}. {error}");
-        return new DownloadResult(row.id, row.url, row.altUrl, false, null, error);
-        
+        lock (progressUpdateLock)
+        {
+            progressBar.Update(
+                Volatile.Read(ref processedCount),
+                Volatile.Read(ref downloadedCount),
+                totalCount);
+        }
+    }
+
+    private async Task<HttpResponseMessage> GetResponseWithRetryAsync(Uri uri)
+    {
+        while (true)
+        {
+            HttpResponseMessage response = await httpClient.GetAsync(uri);
+
+            if (response.StatusCode != HttpStatusCode.TooManyRequests)
+                return response;
+
+            //string responseBody = await response.Content.ReadAsStringAsync();
+
+            if (!TryGetRetryDelay(response, out TimeSpan retryDelay))
+            {
+                response.Dispose();
+                throw new HttpRequestException(
+                    $"HTTP 429 (Too Many Requests) for {uri}. " +
+                    "Retry-After was missing or invalid, so the request was not retried.");
+            }
+
+            if (!retriedUrls.TryAdd(uri.AbsoluteUri, 0))
+            {
+                response.Dispose();
+                throw new HttpRequestException(
+                    $"HTTP 429 (Too Many Requests) for {uri}. " +
+                    "Tried twice");
+            }
+
+            response.Dispose();
+
+            await Task.Delay(retryDelay);
+        }
+    }
+
+    private static bool TryGetRetryDelay(
+        HttpResponseMessage response,
+        out TimeSpan delay)
+    {
+        var retryAfter = response.Headers.RetryAfter;
+
+        if (retryAfter?.Delta is TimeSpan delta)
+        {
+            delay = delta > TimeSpan.Zero ? delta : TimeSpan.Zero;
+            return true;
+        }
+
+        if (retryAfter?.Date is DateTimeOffset retryDate)
+        {
+            delay = retryDate - DateTimeOffset.UtcNow;
+            if (delay < TimeSpan.Zero)
+                delay = TimeSpan.Zero;
+
+            return true;
+        }
+
+        delay = TimeSpan.Zero;
+        return false;
     }
 
     private static bool HasPdfSignature(byte[] fileContents)

@@ -3,7 +3,7 @@ using System.Diagnostics;
 class ProgressBar : IDisposable
 {
 	private const int BarWidth = 20;
-	private readonly Stopwatch elapsed = Stopwatch.StartNew();
+	private readonly Stopwatch stopwatch = new Stopwatch();
 	private readonly object consoleLock = new();
 	private Timer? timer;
 	private int displayedProcessedCount;
@@ -14,13 +14,14 @@ class ProgressBar : IDisposable
 
 	public void StartTimer()
 	{
+		stopwatch.Start();
 		timer = new Timer(_ => Render(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 	}
 
 	public void Dispose()
 	{
 		timer?.Dispose();
-		elapsed.Stop();
+		stopwatch.Stop();
 	}
 
 	public void Update(int processedCount, int downloadedCount, int totalCount)
@@ -57,7 +58,7 @@ class ProgressBar : IDisposable
 		int percent = displayedProcessedCount * 100 / displayedTotalCount;
 		int filledWidth = displayedProcessedCount * BarWidth / displayedTotalCount;
 		string bar = new string('#', filledWidth) + new string('-', BarWidth - filledWidth);
-		TimeSpan duration = elapsed.Elapsed;
+		TimeSpan duration = stopwatch.Elapsed;
 		string elapsedText = duration.TotalSeconds < 60
 			? $"{(int)duration.TotalSeconds}s"
 			: $"{(int)duration.TotalMinutes}m {duration.Seconds:00}s";

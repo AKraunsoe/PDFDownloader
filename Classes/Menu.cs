@@ -15,18 +15,37 @@ class Menu
 
     public void StartMenu ()
     {
-        Console.WriteLine("Enter the directory path of the folder containing your Excel file.");
-        Console.WriteLine("The folder should contain exactly one .xlsx file.");
-        Console.WriteLine("Example: C:\\Users\\YourName\\Documents\\ExcelFiles");
-        Console.Write("Directory path: ");
-        SetDirectoryPath();
-        FillData();
+        while (string.IsNullOrEmpty(FilePath))
+        {
+            Console.WriteLine("Enter the directory path of the folder containing your Excel file.");
+            Console.WriteLine("The folder should contain exactly one .xlsx file.");
+            Console.WriteLine("Example: C:\\Users\\YourName\\Documents\\ExcelFiles");
+            //Console.WriteLine("If no path is provided a folder called PDFs will appear in your downloads directory");
+            Console.Write("Directory path: ");
+            SetDirectoryPath();
+            FillData();
+        }
+
         Options();
     }
 
     private void SetDirectoryPath()
     {
-        DirectoryPath = Console.ReadLine() ?? "";
+        string input = Console.ReadLine() ?? "";
+        if (string.IsNullOrEmpty(input))
+        {
+            if (!Debugger.IsAttached)
+            {
+                Console.Clear();
+            }
+            Console.WriteLine("You have to indicate where you placed your excel file, so I can read it and download the pdfs");
+            StartMenu();
+        }
+        else
+        {
+            DirectoryPath = input;
+        }
+
     }
 
     private void Options()
@@ -131,9 +150,12 @@ class Menu
         }
         else
         {
+            if (!Debugger.IsAttached)
+            {
+                Console.Clear();
+            }
             Console.WriteLine("No Such Directory Found Please try again.");
             Console.WriteLine();
-            Console.Clear();
             StartMenu();
         }
         

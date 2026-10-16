@@ -39,12 +39,14 @@ class OutputFileWriter
             int row = 2;
             foreach (DownloadResult result in results)
             {
+                int errorLimit = result.Error?.Length > 2500 ? 2500 : result.Error?.Length ?? 2500;
+                int fileNameLimit = result.Filename?.Length > 2500 ? 2500 : result.Filename?.Length ?? 2500;
                 worksheet.Cell(row, 1).Value = XLCellValue.FromObject(result.Id);
                 worksheet.Cell(row, 2).Value = XLCellValue.FromObject(result.Url);
                 worksheet.Cell(row, 3).Value = XLCellValue.FromObject(result.AltUrl);
                 worksheet.Cell(row, 4).Value = result.Success;
-                worksheet.Cell(row, 5).Value = result.Filename ?? string.Empty;
-                worksheet.Cell(row, 6).Value = result.Error ?? string.Empty;
+                worksheet.Cell(row, 5).Value = result.Filename?.Substring(0, fileNameLimit) ?? string.Empty;
+                worksheet.Cell(row, 6).Value = result.Error?.Substring(0, errorLimit) ?? string.Empty;
                 row++;
             }
 

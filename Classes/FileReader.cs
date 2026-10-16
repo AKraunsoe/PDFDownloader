@@ -90,7 +90,7 @@ class FileReader()
 
         var Files = Directory.EnumerateFiles(DirectoryPath);
 
-        if (Files.Count() > 1)
+        if (Files.Count() > 1 || Files.Count() == 0)
         {
             return "";
         }
@@ -106,6 +106,12 @@ class FileReader()
 
      public List<ExcelRow> ReturnUpdatedList(List<ExcelRow> NewList, List<ExcelRow> OldList)
     {
+
+        if(OldList == null)
+        {
+            return NewList;
+        }
+
         List<ExcelRow> result = new();
 
         for (int i = 0; i < OldList.Count; i++)

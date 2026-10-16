@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="TestPDFReader" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="ExcelDataReader" Version="3.9.0" />
   </ItemGroup>
