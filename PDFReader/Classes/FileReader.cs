@@ -104,41 +104,51 @@ class FileReader()
         return "";
     }
 
-     public List<ExcelRow> ReturnUpdatedList(List<ExcelRow> NewList, List<ExcelRow> OldList)
+     public List<ExcelRow> ReturnUpdatedList(List<ExcelRow> newList, List<ExcelRow> oldList)
     {
 
-        if(OldList == null)
-        {
-            return NewList;
-        }
+        var result = new List<ExcelRow>((oldList?.Count ?? 0) + newList.Count);
+        var indexes = new Dictionary<(string? Url, string? AltUrl), int>();
 
-        List<ExcelRow> result = new();
-
-        for (int i = 0; i < OldList.Count; i++)
+        void AddOrReplace(ExcelRow row, bool replaceExisting)
         {
-            ExcelRow newRow = i < NewList.Count ? NewList[i] : new ExcelRow();
-            ExcelRow oldRow = OldList[i];
-            if(newRow.id != null){
-                if(newRow.id == oldRow.id && newRow.url == oldRow.url && newRow.altUrl == oldRow.altUrl){
-                    result.Add(oldRow);
-                } 
-                else{
-                    result.Add(newRow);
+            var key = (row.url, row.altUrl);
+
+            // Don't treat rows with no URLs as duplicates of one another.
+            if (key.url is null && key.altUrl is null)
+            {
+                result.Add(row);
+                return;
+            }
+
+            if (indexes.TryGetValue(key, out var index))
+            {
+                var oldRow = result[index];
+                if (replaceExisting && oldRow.id != row.id)
+                {
+                    result[index] = row;
                 }
             }
-            else{
-                result.Add(oldRow);
-            }
-        }
-
-        if(NewList.Count > OldList.Count)
-        {
-            for (int i = OldList.Count; i < NewList.Count; i++)
+            else
             {
-                result.Add(NewList[i]);
+                indexes.Add(key, result.Count);
+                result.Add(row);
             }
         }
+        if (oldList is not null)
+        {
+            foreach (var row in oldList)
+            {
+                AddOrReplace(row, false);
+            }
+                
+        }
 
-        return result;
+        foreach (var row in newList)
+        {
+            AddOrReplace(row, true);
+        }
+
+        return result.OrderBy(row => row.id).ToList();
     }
 }

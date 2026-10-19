@@ -161,20 +161,20 @@ class Menu
         
     }
     
-    async private void ResetDownload()
+    private async void ResetDownload()
     {
         await Download(NewExcelFileObject);
         CreateExcelResult();
     }
 
-    async private void DownloadNew()
+    private async void DownloadNew()
     {
         List<ExcelRow> UpdatedList = fr.ReturnUpdatedList(NewExcelFileObject, ExcelResultFileObject);
         await Download(UpdatedList);
         CreateExcelResult();
     }
 
-    async private Task Download(List<ExcelRow> ExcelList)
+    private async Task Download(List<ExcelRow> ExcelList)
     {
         await pdfDownloader.FillDownLoadResults(ExcelList, PdfDirectoryPath);
         downloadResults = pdfDownloader.downloadResults;
@@ -184,11 +184,6 @@ class Menu
     {
         OutputFileWriter outputFileWriter = new OutputFileWriter();
         outputFileWriter.Write(ExcelResultDirectoryPath, downloadResults);
-        End();
-    }
-
-    private void End()
-    {
         Environment.Exit(0);
     }
 }

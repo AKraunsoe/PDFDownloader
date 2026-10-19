@@ -27,7 +27,7 @@ class OutputFileWriter
 
         if(results.Count() > 0)
         {
-            results.OrderBy(row => row.Id);
+            //results.OrderBy(row => row.Id);
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Result");
 
@@ -37,7 +37,7 @@ class OutputFileWriter
             }
 
             int row = 2;
-            foreach (DownloadResult result in results)
+            foreach (DownloadResult result in results.OrderBy(row => row.Id))
             {
                 int errorLimit = result.Error?.Length > 2500 ? 2500 : result.Error?.Length ?? 2500;
                 int fileNameLimit = result.Filename?.Length > 2500 ? 2500 : result.Filename?.Length ?? 2500;

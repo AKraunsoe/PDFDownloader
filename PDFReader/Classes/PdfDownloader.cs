@@ -40,12 +40,6 @@ class PdfDownloader
         totalCount = NewExcelFileObject.Count(row => row.Success != true);
         int loopCount = NewExcelFileObject.Count();
 
-        if (debug)
-        {
-            loopCount = 10;
-            totalCount = 10 - NewExcelFileObject.Count(row => row.Success);
-        }
-
         if (totalCount == 0)
         {
             progressBar.Update(0, 0, 0);
