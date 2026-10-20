@@ -104,7 +104,7 @@ class FileReader()
         return "";
     }
 
-     public List<ExcelRow> ReturnUpdatedList(List<ExcelRow> newList, List<ExcelRow> oldList)
+    public List<ExcelRow> ReturnUpdatedList(List<ExcelRow> newList, List<ExcelRow> oldList)
     {
 
         var result = new List<ExcelRow>((oldList?.Count ?? 0) + newList.Count);
@@ -114,10 +114,8 @@ class FileReader()
         {
             var key = (row.url, row.altUrl);
 
-            // Don't treat rows with no URLs as duplicates of one another.
             if (key.url is null && key.altUrl is null)
             {
-                result.Add(row);
                 return;
             }
 
@@ -141,7 +139,6 @@ class FileReader()
             {
                 AddOrReplace(row, false);
             }
-
         }
 
         foreach (var row in newList)
