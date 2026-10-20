@@ -6,7 +6,7 @@ public class PdfDownloaderTest
 {
 
     [Fact]
-    public async Task FillDownloadResults_ValidPdfUrl_SavesPdf()
+    public async Task FillDownloadResults_ValidPdfUrl()
     {
         var outputDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -16,8 +16,8 @@ public class PdfDownloaderTest
 
         try
         {
-            var downloader = new PdfDownloader();
-            var rows = new List<ExcelRow>
+            PdfDownloader downloader = new PdfDownloader();
+            List<ExcelRow> rows = new List<ExcelRow>
             {
                 new()
                 {
@@ -29,10 +29,10 @@ public class PdfDownloaderTest
             await downloader.FillDownLoadResults(rows, outputDirectory);
 
             var result = Assert.Single(downloader.downloadResults);
-            Assert.True(result.Success, result.Error);
-            Assert.Equal("1_dummy.pdf", result.Filename);
+            Assert.True(result.success, result.error);
+            Assert.Equal("1_dummy.pdf", result.filename);
 
-            var filePath = Path.Combine(outputDirectory, result.Filename!);
+            var filePath = Path.Combine(outputDirectory, result.filename!);
             Assert.True(File.Exists(filePath));
 
             var bytes = await File.ReadAllBytesAsync(filePath);
@@ -45,7 +45,7 @@ public class PdfDownloaderTest
     }
 
     [Fact]
-    public async Task FillDownloadResults_PrimaryFails_DownloadsFromAltUrl()
+    public async Task FillDownloadResults_PrimaryFails()
     {
         var outputDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -55,12 +55,12 @@ public class PdfDownloaderTest
 
         try
         {
-            var downloader = new PdfDownloader();
-            var rows = new List<ExcelRow>
+            PdfDownloader downloader = new PdfDownloader();
+            List<ExcelRow> rows = new List<ExcelRow>
             {
                 new()
                 {
-                    id = 7,
+                    id = 1,
                     url = "not-a-valid-url",
                     altUrl = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
                 }
@@ -69,9 +69,79 @@ public class PdfDownloaderTest
             await downloader.FillDownLoadResults(rows, outputDirectory);
 
             var result = Assert.Single(downloader.downloadResults);
-            Assert.True(result.Success, result.Error);
-            Assert.Equal("7_dummy.pdf", result.Filename);
-            Assert.True(File.Exists(Path.Combine(outputDirectory, result.Filename!)));
+            Assert.True(result.success, result.error);
+            Assert.Equal("1_dummy.pdf", result.filename);
+            Assert.True(File.Exists(Path.Combine(outputDirectory, result.filename!)));
+        }
+        finally
+        {
+            Directory.Delete(outputDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task FillDownloadResults_NoValidUrl()
+    {
+        var outputDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"PdfDownloaderTest-{Guid.NewGuid():N}");
+
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            PdfDownloader downloader = new PdfDownloader();
+            List<ExcelRow> rows = new List<ExcelRow>
+            {
+                new()
+                {
+                    id = 1,
+                    url = "not-a-valid-url",
+                    altUrl = "not-a-valid-url"
+                }
+            };
+
+            await downloader.FillDownLoadResults(rows, outputDirectory);
+
+            var result = Assert.Single(downloader.downloadResults);
+            Assert.False(result.success);
+            Assert.False(string.IsNullOrWhiteSpace(result.error));
+            Assert.Empty(Directory.GetFiles(outputDirectory));
+        }
+        finally
+        {
+            Directory.Delete(outputDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task FillDownloadResults_NonPdfUrl()
+    {
+        var outputDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"PdfDownloaderTest-{Guid.NewGuid():N}");
+
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            PdfDownloader downloader = new PdfDownloader();
+            List<ExcelRow> rows = new List<ExcelRow>
+            {
+                new()
+                {
+                    id = 1,
+                    url = "https://example.com/"
+                }
+            };
+
+            await downloader.FillDownLoadResults(rows, outputDirectory);
+
+            var result = Assert.Single(downloader.downloadResults);
+            Assert.False(result.success);
+            Assert.Contains("not a PDF", result.error);
+            Assert.Null(result.filename);
+            Assert.Empty(Directory.GetFiles(outputDirectory));
         }
         finally
         {

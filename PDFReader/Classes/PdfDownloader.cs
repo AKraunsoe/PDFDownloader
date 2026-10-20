@@ -7,14 +7,31 @@ using System.Collections.Concurrent;
 
 class PdfDownloader
 {
-    private static readonly HttpClientHandler handler = new HttpClientHandler {
-        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
-    };
-    private static readonly HttpClient httpClient = new HttpClient(handler);
+
+    private static readonly HttpClient httpClient = CreateHttpClient();
+
+    private static HttpClient CreateHttpClient()
+    {
+        HttpClientHandler handler = new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
+        };
+
+        HttpClient client = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMinutes(2)
+        };
+
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0");
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml,application/pdf;q=0.9,*/*;q=0.8");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
+
+        return client;
+
+    }
 
     public readonly List<DownloadResult> downloadResults = new();
-    private readonly ConcurrentDictionary<string, byte> retriedUrls =
-    new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> retriedUrls = new(StringComparer.OrdinalIgnoreCase);
     private int totalCount = 0;
     private int processedCount = 0;
     private int downloadedCount = 0;
@@ -22,22 +39,13 @@ class PdfDownloader
     private readonly object progressUpdateLock = new();
     private readonly SemaphoreSlim downloadLimit = new(40);
 
-    public PdfDownloader()
-    {
-        //httpClient.DefaultRequestHeaders.Accept.Clear();
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0");
-        httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml,application/pdf;q=0.9,*/*;q=0.8");
-        httpClient.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
-        httpClient.Timeout = TimeSpan.FromMinutes(2);
-    }
-    
     public async Task FillDownLoadResults(List<ExcelRow> NewExcelFileObject, string PdfDirectoryPath)
     {
         downloadResults.Clear();
         retriedUrls.Clear();
-        var debug = Debugger.IsAttached;
+        bool debug = Debugger.IsAttached;
 
-        totalCount = NewExcelFileObject.Count(row => row.Success != true);
+        totalCount = NewExcelFileObject.Count(row => row.success != true);
         int loopCount = NewExcelFileObject.Count();
 
         if (totalCount == 0)
@@ -54,14 +62,14 @@ class PdfDownloader
         for (int i = 0; i < loopCount; i++)
         {
             ExcelRow row = NewExcelFileObject[i];
-            if (row.Success == true)
+            if (row.success == true)
             {
-                downloadTasks.Add(Task.FromResult(new DownloadResult(row.id, row.url, row.altUrl, row.Success, row.Filename, row.Error)));
+                downloadTasks.Add(Task.FromResult(new DownloadResult(row.id, row.url, row.altUrl, row.success, row.filename, row.error)));
                 continue;
             }
 
             downloadTasks.Add(DownloadRowAsync(row, PdfDirectoryPath));
-            
+
         }
         DownloadResult[] results = await Task.WhenAll(downloadTasks);
         downloadResults.AddRange(results);
@@ -84,7 +92,7 @@ class PdfDownloader
                 ("url", row.url),
                 ("alt url", row.altUrl)
             })
-            {   
+            {
                 if (string.IsNullOrWhiteSpace(downloadUrl)){
                     if (sourceName == "url")
                     {
@@ -144,7 +152,7 @@ class PdfDownloader
                     string savedFileName = Path.GetFileName(destinationPath);
                     updateProgressBar(true);
                     return new DownloadResult(row.id, row.url, row.altUrl, true, savedFileName, null);
-                    
+
                 }
                 catch (Exception e)
                 {
@@ -165,7 +173,7 @@ class PdfDownloader
         {
             downloadLimit.Release();
         }
-    
+
     }
 
     private void updateProgressBar(bool success)

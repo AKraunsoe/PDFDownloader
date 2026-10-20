@@ -5,11 +5,11 @@ public class FileReaderTest
     [Fact]
     public void FindFile_Success()
     {
-        var fileReader = new FileReader();
-        var testDataDirectory = Path.GetFullPath(
+        FileReader fileReader = new FileReader();
+        string testDataDirectory = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "testData", "CorrectData"));
 
-        var foundFile = fileReader.FindFile(testDataDirectory);
+        string foundFile = fileReader.FindFile(testDataDirectory);
 
         Assert.Equal(Path.Combine(testDataDirectory, "TestData.xlsx"), foundFile);
     }
@@ -17,11 +17,11 @@ public class FileReaderTest
     [Fact]
     public void FindFile_Fail()
     {
-        var fileReader = new FileReader();
-        var testDataDirectory = Path.GetFullPath(
+        FileReader fileReader = new FileReader();
+        string testDataDirectory = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "testData", "blank"));
 
-        var foundFile = fileReader.FindFile(testDataDirectory);
+        string foundFile = fileReader.FindFile(testDataDirectory);
 
         Assert.NotEqual(Path.Combine(testDataDirectory, "TestData.xlsx"), foundFile);
     }
@@ -29,11 +29,11 @@ public class FileReaderTest
     [Fact]
     public void FindFile_Empty()
     {
-        var fileReader = new FileReader();
-        var testDataDirectory = Path.GetFullPath(
+        FileReader fileReader = new FileReader();
+        string testDataDirectory = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "testData", "blank"));
 
-        var foundFile = fileReader.FindFile(testDataDirectory);
+        string foundFile = fileReader.FindFile(testDataDirectory);
 
         Assert.Equal("", foundFile);
     }
@@ -41,11 +41,11 @@ public class FileReaderTest
     [Fact]
     public void FindFile_WrongFileType()
     {
-        var fileReader = new FileReader();
-        var testDataDirectory = Path.GetFullPath(
+        FileReader fileReader = new FileReader();
+        string testDataDirectory = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "testData", "NoneExcelData"));
 
-        var foundFile = fileReader.FindFile(testDataDirectory);
+        string foundFile = fileReader.FindFile(testDataDirectory);
 
         Assert.Equal("", foundFile);
     }
@@ -53,9 +53,9 @@ public class FileReaderTest
     [Fact]
     public void FindFile_NoDirectory()
     {
-        var fileReader = new FileReader();
+        FileReader fileReader = new FileReader();
 
-        var foundFile = fileReader.FindFile("asdf");
+        string foundFile = fileReader.FindFile("asdf");
 
         Assert.Equal("", foundFile);
     }
@@ -63,15 +63,15 @@ public class FileReaderTest
     [Fact]
     public void ExcelReader_Success()
     {
-        var fileReader = new FileReader();
-        var testDataDirectory = Path.GetFullPath(
+        FileReader fileReader = new FileReader();
+        string testDataDirectory = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "testData", "CorrectData"));
 
-        var foundFile = fileReader.FindFile(testDataDirectory);
+        string foundFile = fileReader.FindFile(testDataDirectory);
 
-        var list =  fileReader.ExcelReader(foundFile);
+        List<ExcelRow> list =  fileReader.ExcelReader(foundFile);
 
-        var testList = new List<ExcelRow>
+        List<ExcelRow> testList = new List<ExcelRow>
         {
             new() { id = 1, url = "https://www.novonordisk.com/content/dam/nncorp/global/en/investors/irmaterial/annual_report/2025/novo-nordisk-annual-report-2024.pdfst", altUrl = "https://www.novonordisk.com/content/dam/nncorp/global/en/investors/irmaterial/annual_report/2025/novo-nordisk-annual-report-2024.pdf"},
             new() { id = 2, url = "https://danskebank.com/-/media/danske-bank-com/file-cloud/2025/2/danske-bank---annual-report-2024.pdf?rev=430be65be4cd43d18fc8adeec2139eb5", altUrl = null},
@@ -104,9 +104,9 @@ public class FileReaderTest
 
         for (int i = 0; i < testList.Count(); i++)
         {
-            Assert.Equal(testList[i].id,  list[i].id);
-            Assert.Equal(testList[i].url,  list[i].url);
-            Assert.Equal(testList[i].altUrl,  list[i].altUrl);
+            Assert.Equal(testList[i].id, list[i].id);
+            Assert.Equal(testList[i].url, list[i].url);
+            Assert.Equal(testList[i].altUrl, list[i].altUrl);
         }
 
     }
@@ -114,8 +114,8 @@ public class FileReaderTest
     [Fact]
     public void ReturnUpdatedList_WhenOldListIsNull()
     {
-        var fileReader = new FileReader();
-        var newList = new List<ExcelRow>
+        FileReader fileReader = new FileReader();
+        List<ExcelRow> newList = new List<ExcelRow>
         {
             new() { id = 1, url = "https://example.com/report.pdf" }
         };
@@ -126,9 +126,9 @@ public class FileReaderTest
 
         for (int i = 0; i < newList.Count(); i++)
         {
-            Assert.Equal(newList[i].id,  result[i].id);
-            Assert.Equal(newList[i].url,  result[i].url);
-            Assert.Equal(newList[i].altUrl,  result[i].altUrl);
+            Assert.Equal(newList[i].id, result[i].id);
+            Assert.Equal(newList[i].url, result[i].url);
+            Assert.Equal(newList[i].altUrl, result[i].altUrl);
         }
 
     }
@@ -136,15 +136,15 @@ public class FileReaderTest
     [Fact]
     public void ReturnUpdatedList_WhenOldListIsNotNull()
     {
-        var fileReader = new FileReader();
+        FileReader fileReader = new FileReader();
         List<ExcelRow> newList = new List<ExcelRow>
         {
             new() { id = 1, url = "https://example.com/report.pdf" }
         };
-        var testDataDirectory = Path.GetFullPath(
+        string testDataDirectory = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "testData", "CorrectData"));
 
-        var foundFile = fileReader.FindFile(testDataDirectory);
+        string foundFile = fileReader.FindFile(testDataDirectory);
         List<ExcelRow> oldList = fileReader.ExcelReader(foundFile);
 
         List<ExcelRow> result = fileReader.ReturnUpdatedList(newList, oldList);
@@ -155,16 +155,16 @@ public class FileReaderTest
 
         for (int i = 0; i < combined.Count(); i++)
         {
-            Assert.Equal(combined[i].id,  result[i].id);
-            Assert.Equal(combined[i].url,  result[i].url);
-            Assert.Equal(combined[i].altUrl,  result[i].altUrl);
+            Assert.Equal(combined[i].id, result[i].id);
+            Assert.Equal(combined[i].url, result[i].url);
+            Assert.Equal(combined[i].altUrl, result[i].altUrl);
         }
     }
 
     [Fact]
     public void ReturnUpdatedList_WhenDuplicateValue()
     {
-        var fileReader = new FileReader();
+        FileReader fileReader = new FileReader();
         List<ExcelRow> newList = new List<ExcelRow>
         {
             new() { id = 1, url = "https://example.com/report.pdf" }
@@ -172,7 +172,7 @@ public class FileReaderTest
 
         List<ExcelRow> oldList = new List<ExcelRow>
         {
-            new() { id = 1, url = "https://example.com/report.pdf", altUrl=null, Success= true, Filename="example.pdf", Error="" }
+            new() { id = 1, url = "https://example.com/report.pdf", altUrl=null, success= true, filename="example.pdf", error="" }
         };
 
         List<ExcelRow> result = fileReader.ReturnUpdatedList(newList, oldList);
@@ -182,12 +182,12 @@ public class FileReaderTest
 
         for (int i = 0; i < oldList.Count(); i++)
         {
-            Assert.Equal(oldList[i].id,  result[i].id);
-            Assert.Equal(oldList[i].url,  result[i].url);
-            Assert.Equal(oldList[i].altUrl,  result[i].altUrl);
-            Assert.Equal(oldList[i].Success,  result[i].Success);
-            Assert.Equal(oldList[i].Filename,  result[i].Filename);
-            Assert.Equal(oldList[i].Error,  result[i].Error);
+            Assert.Equal(oldList[i].id, result[i].id);
+            Assert.Equal(oldList[i].url, result[i].url);
+            Assert.Equal(oldList[i].altUrl, result[i].altUrl);
+            Assert.Equal(oldList[i].success, result[i].success);
+            Assert.Equal(oldList[i].filename, result[i].filename);
+            Assert.Equal(oldList[i].error, result[i].error);
         }
 
     }
@@ -195,7 +195,7 @@ public class FileReaderTest
     [Fact]
     public void ReturnUpdatedList_NewId()
     {
-        var fileReader = new FileReader();
+        FileReader fileReader = new FileReader();
         List<ExcelRow> newList = new List<ExcelRow>
         {
             new() { id = 2, url = "https://example.com/report.pdf", altUrl=null }
@@ -203,7 +203,7 @@ public class FileReaderTest
 
         List<ExcelRow> oldList = new List<ExcelRow>
         {
-            new() { id = 1, url = "https://example.com/report.pdf", altUrl=null, Success= true, Filename="example.pdf", Error="" }
+            new() { id = 1, url = "https://example.com/report.pdf", altUrl=null, success= true, filename="example.pdf", error="" }
         };
 
         List<ExcelRow> result = fileReader.ReturnUpdatedList(newList, oldList);
@@ -216,12 +216,10 @@ public class FileReaderTest
             Assert.Equal(newList[i].id, result[i].id);
             Assert.Equal(newList[i].url, result[i].url);
             Assert.Equal(newList[i].altUrl, result[i].altUrl);
-            Assert.Equal(newList[i].Success, result[i].Success);
-            Assert.Equal(newList[i].Filename, result[i].Filename);
-            Assert.Equal(newList[i].Error, result[i].Error);
+            Assert.Equal(newList[i].success, result[i].success);
+            Assert.Equal(newList[i].filename, result[i].filename);
+            Assert.Equal(newList[i].error, result[i].error);
         }
 
     }
-
-    
 }

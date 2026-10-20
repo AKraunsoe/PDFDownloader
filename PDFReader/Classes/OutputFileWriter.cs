@@ -3,12 +3,12 @@ using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Spreadsheet;
 
 public sealed record DownloadResult(
-    object? Id,
-    object? Url,
-    object? AltUrl,
-    bool Success,
-    string? Filename,
-    string? Error);
+    int? Id,
+    string? Url,
+    string? AltUrl,
+    bool success,
+    string? filename,
+    string? error);
 
 class OutputFileWriter
 {
@@ -39,20 +39,20 @@ class OutputFileWriter
             int row = 2;
             foreach (DownloadResult result in results.OrderBy(row => row.Id))
             {
-                int errorLimit = result.Error?.Length > 2500 ? 2500 : result.Error?.Length ?? 2500;
-                int fileNameLimit = result.Filename?.Length > 2500 ? 2500 : result.Filename?.Length ?? 2500;
+                int errorLimit = result.error?.Length > 2500 ? 2500 : result.error?.Length ?? 2500;
+                int fileNameLimit = result.filename?.Length > 2500 ? 2500 : result.filename?.Length ?? 2500;
                 worksheet.Cell(row, 1).Value = XLCellValue.FromObject(result.Id);
                 worksheet.Cell(row, 2).Value = XLCellValue.FromObject(result.Url);
                 worksheet.Cell(row, 3).Value = XLCellValue.FromObject(result.AltUrl);
-                worksheet.Cell(row, 4).Value = result.Success;
-                worksheet.Cell(row, 5).Value = result.Filename?.Substring(0, fileNameLimit) ?? string.Empty;
-                worksheet.Cell(row, 6).Value = result.Error?.Substring(0, errorLimit) ?? string.Empty;
+                worksheet.Cell(row, 4).Value = result.success;
+                worksheet.Cell(row, 5).Value = result.filename?.Substring(0, fileNameLimit) ?? string.Empty;
+                worksheet.Cell(row, 6).Value = result.error?.Substring(0, errorLimit) ?? string.Empty;
                 row++;
             }
 
             worksheet.Columns();
             workbook.SaveAs(Path.Combine(excelResultDirectoryPath, "Result.xlsx"));
         }
-        
+
     }
 }

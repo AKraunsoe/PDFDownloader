@@ -28,21 +28,21 @@ class FileReader()
                         ["id"] = nameof(ExcelRow.id),
                         ["url"] = nameof(ExcelRow.url),
                         ["alt url"] = nameof(ExcelRow.altUrl),
-                        ["Success"] = nameof(ExcelRow.Success),
-                        ["Filename"] = nameof(ExcelRow.Filename),
-                        ["Error"] = nameof(ExcelRow.Error)
+                        ["success"] = nameof(ExcelRow.success),
+                        ["filename"] = nameof(ExcelRow.filename),
+                        ["error"] = nameof(ExcelRow.error)
                     };
 
                         if(reader.Read()){
                             for (int i = 0; i < reader.FieldCount; i++)
                             {
-                                headers[reader.GetValue(i)?.ToString()?.Trim() ?? ""] = i;
+                                headers[reader.GetValue(i)?.ToString()?.Trim().ToLower() ?? ""] = i;
                             }
                         }
 
                         while (reader.Read())
                         {
-                            if(reader.GetValue(0) == null && 
+                            if(reader.GetValue(0) == null &&
                                 reader.GetValue(1) == null &&
                                 reader.GetValue(2) == null)
                             {
@@ -141,7 +141,7 @@ class FileReader()
             {
                 AddOrReplace(row, false);
             }
-                
+
         }
 
         foreach (var row in newList)
